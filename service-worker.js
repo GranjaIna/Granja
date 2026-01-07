@@ -1,4 +1,4 @@
-const CACHE_NAME = "granja-offline-v2";
+const CACHE_NAME = "granja-offline-v3";
 
 // Instalação
 self.addEventListener("install", event => {
