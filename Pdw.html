@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <link rel="manifest" href="./manifest.json">
+    
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <meta name="theme-color" content="#2E7D32">
+    
+    <title>Granja Sítio Inatomi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-green: #2E7D32; --light-green: #E8F5E9; --accent-green: #4CAF50;
+            --secondary-orange: #E65100; --light-orange: #FFF3E0;
+            --purple-class: #6A1B9A; --light-purple: #F3E5F5;
+            --red-exit: #c62828; --light-red: #ffebee;
+            --offline-color: #d32f2f; --warning-color: #f57c00; --text-color: #333; --white: #ffffff;
+            --blue-info: #0288d1; --bg-blue: #e1f5fe;
+            --table-header: #388E3C; --table-row-even: #f9f9f9;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--light-green); color: var(--text-color); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+        
+        /* Ajuste para não cortar o topo no iPhone com status bar translúcida */
+        .header { text-align: center; margin-bottom: 20px; margin-top: 30px; } 
+        .header h1 { color: var(--primary-green); font-size: 1.5rem; font-weight: 700; }
+        
+        .status-bar { width: 100%; max-width: 400px; padding: 12px; text-align: center; border-radius: 8px; margin-bottom: 15px; font-weight: bold; font-size: 0.95rem; display: none; background-color: #ffebee; color: var(--offline-color); border: 2px solid var(--offline-color); animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+        
+        .card { background: var(--white); width: 100%; max-width: 400px; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--primary-green); font-size: 0.9rem; }
+        select, input { width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 1rem; background-color: #fafafa; -webkit-appearance: none; appearance: none; color: #333; }
+        select:focus, input:focus { outline: none; border-color: var(--accent-green); background-color: var(--white); }
+        .select-wrapper { position: relative; }
+        .select-wrapper::after { content: '▼'; font-size: 0.8rem; color: var(--primary-green); position: absolute; right: 15px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+        button { width: 100%; padding: 18px; background-color: var(--primary-green); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 6px rgba(46, 125, 50, 0.3); transition: 0.3s; }
+        button:active { transform: scale(0.98); background-color: #1B5E20; }
+        #btn-sync { background-color: var(--warning-color); margin-bottom: 20px; display: none; animation: pulse 2s infinite; }
+        
+        /* ABAS */
+        .tabs-container { display: flex; width: 100%; max-width: 400px; margin-bottom: 15px; background: #ccc; border-radius: 10px; padding: 5px; gap: 5px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; background: transparent; color: #555; font-size: 0.9rem; }
+        .tab-btn.active { background: var(--white); color: var(--primary-green); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .tab-btn#btn-tab-sala.active { color: var(--secondary-orange); }
+        .tab-btn#btn-tab-saida.active { color: var(--red-exit); }
+        
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+
+        .theme-sala-ovo label { color: var(--secondary-orange); }
+        .theme-sala-ovo button { background-color: var(--secondary-orange); }
+        .theme-sala-ovo .select-wrapper::after { color: var(--secondary-orange); }
+
+        .theme-saida label { color: var(--red-exit); }
+        .theme-saida button { background-color: var(--red-exit); }
+        .theme-saida .select-wrapper::after { color: var(--red-exit); }
+
+        .btn-admin { background-color: #fff; color: #333; border: 2px solid #999; margin-top: 30px; max-width: 400px; box-shadow: none; }
+        #admin-container { display: none; width: 100%; max-width: 400px; margin-top: 10px; animation: fadeIn 0.5s; }
+        .dashboard-card { background-color: var(--bg-blue); border: 1px solid var(--blue-info); text-align: center; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
+        .dash-title { color: var(--blue-info); font-weight: bold; margin-bottom: 10px; }
+        .date-picker-wrapper { margin-bottom: 15px; }
+        .date-picker-wrapper input { padding: 8px; text-align: center; border: 2px solid var(--blue-info); color: var(--blue-info); font-weight: bold; border-radius: 8px; width: auto; font-size:1rem; }
+        .dash-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; } 
+        .dash-item { background: white; padding: 8px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center; }
+        .dash-value { font-size: 1.3rem; font-weight: 800; color: #333; }
+        .dash-label { font-size: 0.75rem; color: #666; margin-top: 2px; }
+
+        .table-box { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid #ddd; margin-bottom: 30px; }
+        .styled-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .styled-table thead tr { background-color: var(--table-header); color: #ffffff; text-align: left; }
+        .styled-table th, .styled-table td { padding: 10px; }
+        .styled-table tbody tr { border-bottom: 1px solid #dddddd; }
+        .styled-table tbody tr:nth-of-type(even) { background-color: var(--table-row-even); }
+        
+        .tag-galpao { font-weight: bold; color: var(--primary-green); }
+        .tag-coleta { font-size: 0.8rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #555; }
+        .tag-resto { font-size: 0.8rem; background: #fff3e0; padding: 2px 6px; border-radius: 4px; color: #e65100; font-weight:bold; }
+        .tag-caixa { background: #E8F5E9; color: #2E7D32; font-weight: bold; padding: 2px 6px; border-radius: 4px; border: 1px solid #2E7D32; }
+        .tag-trincado { background: #FFEBEE; color: #C62828; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .tag-tipo { font-weight: bold; color: #6A1B9A; background: #F3E5F5; padding: 2px 6px; border-radius: 4px; }
+        .tag-saida { font-weight: bold; color: #c62828; background: #ffebee; padding: 2px 6px; border-radius: 4px; }
+        
+        .chart-container { background: white; padding: 10px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; height: 250px; }
+        .history-log { margin-top: 15px; text-align: left; max-height: 150px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px; }
+        .history-item { font-size: 0.85rem; padding: 5px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .badge-offline { background: #FFF3E0; color: #E65100; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .badge-online { background: #E8F5E9; color: #2E7D32; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #success-message { display: none; text-align: center; padding: 20px; }
+        .success-icon { font-size: 4rem; margin-bottom: 15px; display: block; }
+        .btn-new { background-color: transparent; border: 2px solid var(--primary-green); color: var(--primary-green); margin-top: 20px; box-shadow: none; animation: none; }
+        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Granja Sítio Inatomi</h1>
+        <span>Sistema Integrado</span>
+    </div>
+
+    <div id="offline-indicator" class="status-bar">📡 Sem Internet. Modo Offline Ativo.</div>
+
+    <div class="tabs-container">
+        <button class="tab-btn active" id="btn-tab-coleta" onclick="mudarAbaLancamento('coleta')">🐔 Galpão</button>
+        <button class="tab-btn" id="btn-tab-sala" onclick="mudarAbaLancamento('sala')">🥚 Sala</button>
+        <button class="tab-btn" id="btn-tab-saida" onclick="mudarAbaLancamento('saida')">🚚 Saídas</button>
+    </div>
+
+    <div id="view-lancamento-coleta" class="tab-content active">
+        <div class="card">
+            <button id="btn-sync-coleta" onclick="syncDataColeta()" style="display:none; background-color:var(--warning-color); margin-bottom:20px;">📤 Enviar Pendentes</button>
+            <form id="eggForm" onsubmit="handleFormSubmit(event)">
+                <div class="form-group"><label>Qual Coleta?</label><div class="select-wrapper"><select id="coleta" required onchange="mudarTextoQuantidade()"><option value="" disabled selected>Selecione...</option><option value="1">1ª Coleta</option><option value="2">2ª Coleta</option><option value="3">3ª Coleta</option><option value="Resto">Resto</option></select></div></div>
+                <div class="form-group"><label>Galpão</label><div class="select-wrapper"><select id="galpao" required><option value="" disabled selected>Galpão...</option><option value="0">Galpão 00</option><option value="1">Galpão 01</option><option value="2">Galpão 02</option><option value="3">Galpão 03</option><option value="4">Galpão 04</option><option value="5">Galpão 05</option><option value="6">Galpão 06</option><option value="7">Galpão 07</option><option value="8">Galpão 08</option><option value="9">Galpão 09</option><option value="10">Galpão 10</option><option value="11">Galpão 11</option><option value="12">Galpão 12</option><option value="13">Galpão 13</option><option value="14">Galpão 14</option><option value="15">Galpão 15</option><option value="16">Galpão 16</option><option value="17">Galpão 17</option><option value="18">Galpão 18</option><option value="19">Galpão 19</option><option value="20">Galpão 20</option><option value="21">Galpão 21</option></select></div></div>
+                <div class="form-group"><label id="label-qtd">Quantidade (Formas)</label><input type="number" id="formas" placeholder="Ex: 30" required></div>
+                <button type="submit" id="btn-submit">Enviar Coleta</button>
+                <div id="hist-galpao" class="history-log"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="view-lancamento-sala" class="tab-content theme-sala-ovo">
+        <div class="card">
+            <h3 style="text-align:center; color:var(--secondary-orange); margin-bottom:15px;">Entrada de Estoque / Produção</h3>
+            <button id="btn-sync-sala" onclick="syncDataSala()" style="display:none; background-color:var(--warning-color); margin-bottom:20px;">📤 Enviar Pendentes</button>
+            <form id="salaForm" onsubmit="handleSalaSubmit(event, 'Estoque')">
+                <div class="form-group">
+                    <label>Tipo de Ovo</label>
+                    <div class="select-wrapper">
+                        <select id="sala_tipo" required onchange="mudarTextoSala()">
+                            <option value="" disabled selected>Selecione...</option>
+                            <option value="Caixas">1. Caixas</option>
+                            <option value="Trincados">2. Ovos Trincados</option>
+                            <option value="Segundinha">3. Segundinha</option>
+                            <option value="Primeira">4. Primeira</option>
+                            <option value="Especial">5. Especial</option>
+                            <option value="Extra">6. Extra</option>
+                            <option value="Jumbo">7. Jumbo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label id="label-sala-qtd">Quantidade</label><input type="number" id="sala_qtd" placeholder="Ex: 50" required></div>
+                <button type="submit" id="btn-submit-sala">Salvar Produção (Somar)</button>
+                <div id="hist-sala" class="history-log"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="view-lancamento-saida" class="tab-content theme-saida">
+        <div class="card">
+            <h3 style="text-align:center; color:var(--red-exit); margin-bottom:15px;">Saída de Mercadoria</h3>
+            <form id="saidaForm" onsubmit="handleSaidaSubmit(event)">
+                <div class="form-group">
+                    <label>Cliente / Destino</label>
+                    <div class="select-wrapper">
+                        <select id="saida_destino" required>
+                            <option value="" disabled selected>Selecione...</option>
+                            <option value="Minori">Minori</option>
+                            <option value="Ceasa">Ceasa</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Ovo</label>
+                    <div class="select-wrapper">
+                        <select id="saida_tipo" required>
+                            <option value="" disabled selected>Selecione...</option>
+                            <option value="Segundinha">Segundinha</option>
+                            <option value="Primeira">Primeira</option>
+                            <option value="Especial">Especial</option>
+                            <option value="Extra">Extra</option>
+                            <option value="Jumbo">Jumbo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Quantidade (Caixas)</label><input type="number" id="saida_qtd" placeholder="Ex: 10" required></div>
+                <button type="submit" id="btn-submit-saida">Registrar Saída</button>
+                <div id="hist-saida" class="history-log"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="success-message" class="card" style="display:none;">
+        <span id="success-icon" class="success-icon">✔</span><h2 id="success-title">Sucesso!</h2><p id="success-text">Processado.</p>
+        <button class="btn-new" onclick="resetAllForms()">Novo Registro</button>
+    </div>
+
+    <button class="btn-admin" onclick="toggleAdmin()">🔒 Área Administrativa</button>
+
+    <div id="admin-container">
+        <div class="dashboard-card">
+            <div class="dash-title">RESUMO DE:</div>
+            <div class="date-picker-wrapper"><input type="date" id="filtro-data" onchange="carregarDadosGerais()"></div>
+            <button onclick="carregarDadosGerais()" style="padding:10px; font-size:0.8rem; background-color: var(--blue-info); border:none; color:white; border-radius:5px;">🔄 Atualizar Tudo</button>
+        </div>
+
+        <div class="tabs-container" style="background:#ddd;">
+            <button class="tab-btn active" id="btn-admin-coleta" onclick="mudarAbaAdmin('coleta')">📊 Galpão</button>
+            <button class="tab-btn" id="btn-admin-sala" onclick="mudarAbaAdmin('sala')">🥚 Sala & Estoque</button>
+        </div>
+
+        <div id="admin-view-coleta" class="tab-content active">
+            <div class="dash-grid" style="margin-bottom:20px;">
+                <div class="dash-item"><div class="dash-value" id="total-caixas" style="color:var(--primary-green);">...</div><div class="dash-label">Caixas</div></div>
+                <div class="dash-item"><div class="dash-value" id="total-formas">...</div><div class="dash-label">Formas</div></div>
+                <div class="dash-item"><div class="dash-value" id="total-ovos">...</div><div class="dash-label">Ovos</div></div>
+            </div>
+            <h3 style="text-align:center; color:#666; font-size:0.9rem; margin:10px 0;">🏭 Produção por Granja (Dia)</h3>
+            <div class="table-box"><table class="styled-table"><thead><tr><th>Grupo</th><th style="text-align:right;">Formas (Total)</th></tr></thead><tbody id="tabela-granjas"><tr><td colspan="2" style="text-align:center">Carregando...</td></tr></tbody></table></div>
+            <h3 style="text-align:center; color:#666; font-size:0.9rem; margin:10px 0;">📅 Produção Semanal (Ovos)</h3>
+            <div class="table-box table-scroll"><table class="styled-table"><thead><tr><th>Galpão</th><th>Seg</th><th>Ter</th><th>Qua</th><th>Qui</th><th>Sex</th><th>Sáb</th><th>Dom</th><th>TOTAL</th></tr></thead><tbody id="tabela-semanal"><tr><td colspan="9" style="text-align:center">Carregando...</td></tr></tbody></table></div>
+            <div class="chart-container"><canvas id="graficoProducao"></canvas></div>
+            <h3 style="text-align:center; color:#666; font-size:0.9rem; margin:10px 0;">🏆 Ranking</h3>
+            <div class="table-box"><table class="styled-table"><thead><tr><th>Galpão</th><th style="text-align:center;">Caixas</th><th style="text-align:right;">Total</th></tr></thead><tbody id="tabela-ranking"></tbody></table></div>
+            <h3 style="text-align:center; color:#666; font-size:0.9rem; margin:10px 0;">📋 Extrato (Dia)</h3>
+            <div class="table-box"><table class="styled-table"><thead><tr><th>Galpão</th><th>Coleta</th><th style="text-align:right;">Qtd</th></tr></thead><tbody id="tabela-detalhada"></tbody></table></div>
+        </div>
+
+        <div id="admin-view-sala" class="tab-content theme-sala-ovo">
+            <h3 style="text-align:center; color:#666; font-size:0.9rem; margin-top:10px;">🏭 Produção do Dia (Entrada)</h3>
+            <div class="dash-grid" style="margin-bottom:20px; grid-template-columns:1fr 1fr;">
+                <div class="dash-item"><div class="dash-value" id="sala-total-caixas" style="color:var(--secondary-orange);">...</div><div class="dash-label">Caixas (Entrada)</div></div>
+                <div class="dash-item"><div class="dash-value" id="sala-total-trincados">...</div><div class="dash-label">Trincados</div></div>
+            </div>
+
+            <h3 style="text-align:center; color:var(--secondary-orange); margin-top:10px;">📦 Estoque Disponível</h3>
+            <div class="table-box">
+                <table class="styled-table">
+                    <thead><tr><th>Tipo</th><th style="text-align:right;">Produção (Dia)</th><th style="text-align:right;">Saídas (Dia)</th><th style="text-align:right;">Saldo Total</th></tr></thead>
+                    <tbody id="tabela-estoque-resumo">
+                        <tr><td colspan="4" style="text-align:center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="text-align:center; color:var(--red-exit); margin-top:10px;">🚚 Saídas por Cliente (Dia)</h3>
+            <div class="table-box">
+                <table class="styled-table">
+                    <thead><tr><th>Cliente</th><th style="text-align:right;">Total Caixas</th></tr></thead>
+                    <tbody id="tabela-saidas-cliente">
+                        <tr><td colspan="2" style="text-align:center;">Sem saídas hoje.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="text-align:center; color:#666; font-size:0.9rem; margin:10px 0;">📋 Movimento Recente</h3>
+            <div class="table-box"><table class="styled-table"><thead><tr><th>Data</th><th>Destino</th><th>Tipo</th><th style="text-align:right;">Qtd</th></tr></thead><tbody id="tabela-sala-detalhada"></tbody></table></div>
+        </div>
+    </div>
+
+    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+
+    <script>
+        const SENHA_ADMIN = "inatomi";
+        const FORM1_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeEfB5lUlSdYhFjMmVDfqS27nO0OoNdn3CwPxA9ovCwHcOxuQ/formResponse";
+        const CSV_URL_GALPAO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISmC65P0WCRsJmMhw22ezgfo9MTMgn6pQHbg8ah9zIGQfjrHKjv6mWvI30cy5dBq8PPC3nWUANStT/pub?output=csv";
+        const ID1_COLETA = "entry.706247897"; const ID1_GALPAO = "entry.1285261074"; const ID1_FORMAS = "entry.1176846742"; const ID1_DATA = "entry.1068738120";
+
+        const FORM2_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfsFdJ5SRtCnuukT7m7vHmzPAtQRbkGzJpLWnA0c0g5m5gQwA/formResponse";
+        const CSV_URL_SALA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT0G5TWTN_Qx8GT4ML-Xklrbi47MpYM5xC0s5X0DRso5PWqEMiHu9Bkx1qiBw3Rg7t33uZ9yLHZFF6k/pub?gid=1708220629&single=true&output=csv";
+        
+        // IDs DEFINITIVOS
+        const ID_CAIXAS    = "entry.958791758";
+        const ID_TRINCADOS = "entry.383178438"; 
+        const ID_PRIMEIRA  = "entry.571988451"; 
+        const ID_ESPECIAL  = "entry.15268580";
+        const ID_EXTRA     = "entry.1119488535";
+        const ID_JUMBO     = "entry.386028261";
+        const ID_SEGUNDINHA = "entry.1676446188"; 
+        const ID_DESTINO    = "entry.1411896968";
+
+        let meuGrafico = null;
+        let sessionEntries = [];
+
+        setInterval(checkConnection, 2000);
+
+        function checkConnection() {
+            const isOnline = navigator.onLine;
+            const indicator = document.getElementById('offline-indicator');
+            if (isOnline) { indicator.style.display = 'none'; } 
+            else { indicator.style.display = 'block'; }
+            checkPendingData();
+        }
+
+        window.onload = function() { 
+            document.getElementById('filtro-data').valueAsDate = new Date(); 
+            renderHistory('galpao'); 
+            renderHistory('sala');
+            renderHistory('saida');
+            checkConnection(); 
+        };
+
+        function mudarAbaLancamento(aba) {
+            document.querySelectorAll('[id^="view-lancamento-"]').forEach(el => el.style.display = 'none');
+            document.getElementById('view-lancamento-' + aba).style.display = 'block';
+            document.querySelectorAll('.tabs-container .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-tab-' + aba).classList.add('active');
+        }
+
+        function mudarAbaAdmin(aba) {
+            document.querySelectorAll('[id^="admin-view-"]').forEach(el => el.style.display = 'none');
+            document.getElementById('admin-view-' + aba).style.display = 'block';
+            document.querySelectorAll('#admin-container .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-admin-' + aba).classList.add('active');
+        }
+
+        function mudarTextoQuantidade() {
+            const val = document.getElementById("coleta").value;
+            const input = document.getElementById("formas"); const lbl = document.getElementById("label-qtd");
+            if(val==="Resto"){ lbl.innerText="Qtd (Ovos)"; input.placeholder="7"; lbl.style.color="#e65100"; }
+            else{ lbl.innerText="Qtd (Formas)"; input.placeholder="30"; lbl.style.color="var(--primary-green)"; }
+        }
+
+        function mudarTextoSala() {
+            const val = document.getElementById("sala_tipo").value;
+            const input = document.getElementById("sala_qtd"); const lbl = document.getElementById("label-sala-qtd");
+            if(val==="Trincados") { lbl.innerText="Qtd (Formas)"; input.placeholder="5"; }
+            else { lbl.innerText="Qtd (Caixas)"; input.placeholder="10"; }
+        }
+
+        function toggleAdmin() {
+            var container = document.getElementById("admin-container");
+            var btn = document.querySelector(".btn-admin");
+            if (container.style.display === "none" || container.style.display === "") {
+                var senha = prompt("🔐 Digite a senha:");
+                if (senha === SENHA_ADMIN) { container.style.display = "block"; btn.innerHTML = "❌ Fechar Área Admin"; carregarDadosGerais(); }
+                else if (senha !== null) alert("Senha errada!");
+            } else { container.style.display = "none"; btn.innerHTML = "🔒 Área Administrativa"; }
+        }
+
+        // HISTORICO
+        function addToHistory(type, desc, isOnline) {
+            sessionEntries.push({ type: type, desc: desc, online: isOnline, time: new Date() });
+            renderHistory('galpao');
+            renderHistory('sala');
+            renderHistory('saida');
+        }
+
+        function renderHistory(tab) {
+            let containerId = (tab === 'galpao') ? 'hist-galpao' : (tab === 'sala' ? 'hist-sala' : 'hist-saida');
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            container.innerHTML = "";
+            let offlineKey = (tab === 'galpao') ? 'granjaOffline' : 'salaOvoOffline';
+            let offlineData = JSON.parse(localStorage.getItem(offlineKey)) || [];
+            offlineData.forEach(item => {
+                let txt = item.desc || ((tab === 'galpao') ? `G${item.galpao}-${item.coleta}` : `${item.tipo}`);
+                container.innerHTML += `<div class="history-item"><span>${txt}</span><span class="badge-offline">Pendente</span></div>`;
+            });
+            // Filtra historico da sessao
+            let sessionItems = sessionEntries.filter(i => {
+                if(tab==='galpao') return i.desc.includes('G');
+                if(tab==='saida') return i.desc.includes('Minori') || i.desc.includes('Ceasa');
+                return !i.desc.includes('G') && !i.desc.includes('Minori') && !i.desc.includes('Ceasa');
+            });
+            sessionItems.slice(-5).reverse().forEach(item => {
+                container.innerHTML += `<div class="history-item"><span>${item.desc}</span><span class="badge-online">Enviado</span></div>`;
+            });
+        }
+
+        // SUBMIT UNIFICADO
+        async function submitToGoogle(fid, dataObject, historyDesc) {
+            const formUrl = (fid===1) ? FORM1_URL : FORM2_URL;
+            const formData = new FormData();
+            for(const key in dataObject) { formData.append(key, dataObject[key]); }
+            try {
+                await fetch(formUrl, { method: 'POST', mode: 'no-cors', body: formData });
+                addToHistory(fid===1?'galpao':(historyDesc.includes('Minori')||historyDesc.includes('Ceasa')?'saida':'sala'), historyDesc, true);
+                showSuccessScreen(true);
+                if(document.getElementById("admin-container").style.display==="block") { setTimeout(carregarDadosGerais, 3000); }
+            } catch (e) { alert("Erro ao enviar. Verifique conexão."); }
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const g = document.getElementById('galpao').value;
+            const c = document.getElementById('coleta').value;
+            const f = document.getElementById('formas').value;
+            const desc = `G${g} - ${c} (${f})`;
+            const d = { [ID1_COLETA]: c, [ID1_GALPAO]: g, [ID1_FORMAS]: f, [ID1_DATA]: getFormattedDate() };
+            if(navigator.onLine) submitToGoogle(1, d, desc); else {
+                saveLocal(1, {coleta:c, galpao:g, formas:f, dataHora:d[ID1_DATA], desc: desc});
+                renderHistory('galpao');
+            }
+        }
+
+        function handleSalaSubmit(e, destino) {
+            e.preventDefault();
+            const tipo = document.getElementById('sala_tipo').value;
+            const qtd = document.getElementById('sala_qtd').value;
+            const desc = `${tipo}: ${qtd}`;
+            
+            let dados = {};
+            dados[ID_CAIXAS] = (tipo === "Caixas") ? qtd : "";
+            dados[ID_TRINCADOS] = (tipo === "Trincados") ? qtd : "";
+            dados[ID_PRIMEIRA] = (tipo === "Primeira") ? qtd : "";
+            dados[ID_ESPECIAL] = (tipo === "Especial") ? qtd : "";
+            dados[ID_EXTRA] = (tipo === "Extra") ? qtd : "";
+            dados[ID_JUMBO] = (tipo === "Jumbo") ? qtd : "";
+            dados[ID_SEGUNDINHA] = (tipo === "Segundinha") ? qtd : "";
+            dados[ID_DESTINO] = destino; // "Estoque"
+
+            if(navigator.onLine) submitToGoogle(2, dados, desc); 
+            else {
+                saveLocal(2, {tipo: tipo, qtd: qtd, dataHora: getFormattedDate(), destino: destino, desc: desc});
+                renderHistory('sala');
+            }
+        }
+
+        function handleSaidaSubmit(e) {
+            e.preventDefault();
+            const destino = document.getElementById('saida_destino').value;
+            const tipo = document.getElementById('saida_tipo').value;
+            const qtd = document.getElementById('saida_qtd').value;
+            const desc = `Saída ${destino} - ${tipo}: ${qtd}`;
+
+            let dados = {};
+            dados[ID_PRIMEIRA] = (tipo === "Primeira") ? qtd : "";
+            dados[ID_ESPECIAL] = (tipo === "Especial") ? qtd : "";
+            dados[ID_EXTRA] = (tipo === "Extra") ? qtd : "";
+            dados[ID_JUMBO] = (tipo === "Jumbo") ? qtd : "";
+            dados[ID_SEGUNDINHA] = (tipo === "Segundinha") ? qtd : "";
+            dados[ID_DESTINO] = destino; // "Minori" ou "Ceasa"
+
+            if(navigator.onLine) submitToGoogle(2, dados, desc);
+            else {
+                saveLocal(2, {tipo: tipo, qtd: qtd, dataHora: getFormattedDate(), destino: destino, desc: desc});
+                renderHistory('saida');
+            }
+        }
+
+        function carregarDadosGerais() {
+            if(!navigator.onLine) return;
+            let dataInput = document.getElementById('filtro-data').value;
+            if(!dataInput){ dataInput=new Date().toISOString().split('T')[0]; document.getElementById('filtro-data').value=dataInput; }
+            let partes = dataInput.split('-'); let dia = partes[2]; let mes = partes[1]; let ano = partes[0];
+            let dataFiltroBR = `${dia}/${mes}/${ano}`; 
+            let dtSelected = new Date(partes[0], partes[1]-1, partes[2]);
+            carregarGalpao(dtSelected, dataFiltroBR); 
+            carregarSalaCompleta(dataFiltroBR, dataInput);
+        }
+
+        function carregarGalpao(dtSelected, dataFiltro) {
+            // ... (Mesma função de antes)
+            let currentDay = dtSelected.getDay(); 
+            let distanceToMonday = (currentDay + 6) % 7; 
+            let monday = new Date(dtSelected);
+            monday.setDate(dtSelected.getDate() - distanceToMonday);
+            let weekDates = [];
+            for(let i=0; i<7; i++){
+                let d = new Date(monday);
+                d.setDate(monday.getDate() + i);
+                weekDates.push(d.toLocaleDateString('pt-BR'));
+            }
+            document.getElementById("tabela-ranking").innerHTML="<tr><td colspan='3'>...</td></tr>";
+            document.getElementById("tabela-semanal").innerHTML="<tr><td colspan='9'>Carregando...</td></tr>";
+            document.getElementById("tabela-granjas").innerHTML="<tr><td colspan='2'>Calculando...</td></tr>";
+            const proxy = "https://corsproxy.io/?" + encodeURIComponent(CSV_URL_GALPAO + "&t=" + new Date().getTime());
+            fetch(proxy).then(r=>r.text()).then(txt=>{
+                const rows = txt.split("\n");
+                let weeklyMap = {}; for(let i=0; i<=21; i++) { let gName = i < 10 ? `Galpão 0${i}` : `Galpão ${i}`; if(i===0) gName = "Galpão 00"; weeklyMap[gName] = [0,0,0,0,0,0,0]; }
+                let totOvos=0; let resumo={}; let detalhada=[]; let g1Ovos=0; let g2Ovos=0;
+                let c = rows[0].toLowerCase().split(",");
+                let iF=-1, iD=-1, iG=-1, iC=-1;
+                c.forEach((h,i)=>{ if(h.includes("formas"))iF=i; if(h.includes("data")&&!h.includes("coleta"))iD=i; if(h.includes("galpão"))iG=i; if(h.includes("coleta"))iC=i; });
+                for(let i=1; i<rows.length; i++){
+                    let cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                    if(!cols[iF]) continue;
+                    let dtRaw = cols[iD].replace(/"/g,"").trim(); let dtDate = dtRaw.split(' ')[0]; let gal = cols[iG].replace(/"/g,"").trim();
+                    let qtd = parseFloat(cols[iF].replace(/"/g,""))||0; let col = cols[iC].replace(/"/g,"").trim(); let isResto = col.toLowerCase().includes("resto"); let ovos = isResto ? qtd : qtd*30;
+                    let dayIndex = weekDates.indexOf(dtDate); if(dayIndex !== -1) { if(!weeklyMap[gal]) weeklyMap[gal] = [0,0,0,0,0,0,0]; weeklyMap[gal][dayIndex] += ovos; }
+                    if(dtDate === dataFiltro){
+                        totOvos += ovos; if(!resumo[gal]) resumo[gal]=0; resumo[gal]+=ovos;
+                        detalhada.push({g:gal, gn:parseInt(gal.replace(/\D/g,''))||999, c:col, q:qtd, r:isResto});
+                        let numGal = parseInt(gal.replace(/\D/g,'')) || 0;
+                        if (numGal >= 0 && numGal <= 10) g1Ovos += ovos; else if (numGal >= 11 && numGal <= 21) g2Ovos += ovos;
+                    }
+                }
+                let htmlGranjas = `<tr><td class='tag-galpao'>Granja 1 (G00-G10)</td><td style='text-align:right; font-weight:bold;'>${(g1Ovos/30).toFixed(1)}</td></tr><tr><td class='tag-galpao'>Granja 2 (G11-G21)</td><td style='text-align:right; font-weight:bold;'>${(g2Ovos/30).toFixed(1)}</td></tr>`;
+                document.getElementById("tabela-granjas").innerHTML = htmlGranjas;
+                let htmlSemana = ""; let sortedKeys = Object.keys(weeklyMap).sort((a,b) => parseInt(a.replace(/\D/g,'')) - parseInt(b.replace(/\D/g,'')));
+                sortedKeys.forEach(gKey => { let vals = weeklyMap[gKey]; let totalSemana = vals.reduce((a,b)=>a+b,0); if(totalSemana > 0) { let tds = vals.map(v => `<td style="text-align:right; font-size:0.8rem;">${v > 0 ? v : '-'}</td>`).join(''); htmlSemana += `<tr><td class="tag-galpao">${gKey}</td>${tds}<td style="text-align:right; font-weight:bold;">${totalSemana}</td></tr>`; } });
+                document.getElementById("tabela-semanal").innerHTML = htmlSemana || "<tr><td colspan='9' style='text-align:center'>Sem produção.</td></tr>";
+                document.getElementById("total-formas").innerText=(totOvos/30).toFixed(1); document.getElementById("total-caixas").innerText=(totOvos/360).toFixed(1); document.getElementById("total-ovos").innerText=totOvos.toLocaleString('pt-BR');
+                let arrRank = []; for(let k in resumo) arrRank.push({n:k, v:resumo[k]}); arrRank.sort((a,b)=>b.v - a.v);
+                let htmlR = ""; if(arrRank.length===0) htmlR="<tr><td colspan='3' style='text-align:center'>Sem dados.</td></tr>";
+                arrRank.forEach(x=>{ htmlR+=`<tr><td class="tag-galpao">${x.n}</td><td style="text-align:center">${(x.v/360).toFixed(1)} cx</td><td style="text-align:right"><strong>${x.v}</strong></td></tr>`; });
+                document.getElementById("tabela-ranking").innerHTML = htmlR;
+                detalhada.sort((a,b)=>{ if(a.gn===b.gn)return a.c.localeCompare(b.c); return a.gn-b.gn; });
+                let htmlD = ""; if(detalhada.length===0) htmlD="<tr><td colspan='3' style='text-align:center'>Sem dados.</td></tr>";
+                detalhada.forEach(x=>{ let cls=x.r?'tag-resto':'tag-coleta'; let txt=x.r?x.q+" ovos":x.q+" f"; htmlD+=`<tr><td class="tag-galpao">${x.g}</td><td><span class="${cls}">${x.r?"RESTO":x.c}</span></td><td style="text-align:right"><strong>${txt}</strong></td></tr>`; });
+                document.getElementById("tabela-detalhada").innerHTML = htmlD; atualizarGrafico(arrRank);
+            });
+        }
+
+        function carregarSalaCompleta(dataFiltroBR, dataFiltroISO) {
+            const proxy = "https://corsproxy.io/?" + encodeURIComponent(CSV_URL_SALA + "&t=" + new Date().getTime());
+            fetch(proxy).then(r=>r.text()).then(txt=>{
+                const rows = txt.split("\n");
+                let listaTodas = [];
+                
+                // Variáveis Acumuladas (Estoque Global) - Varre TODOS os dados
+                let stkJumbo=0, stkExtra=0, stkEsp=0, stkPrim=0, stkSeg=0;
+                
+                // Variáveis do Dia (Soma diária) - Apenas dados de HOJE
+                let diaCx=0, diaTrin=0, diaSeg=0, diaPrim=0, diaEsp=0, diaExtra=0, diaJumbo=0;
+                let diaSaidaSeg=0, diaSaidaPrim=0, diaSaidaEsp=0, diaSaidaExtra=0, diaSaidaJumbo=0;
+                let saidaMinori=0, saidaCeasa=0;
+
+                let c = rows[0].toLowerCase().split(",");
+                let idxCaixa=-1, idxTrinc=-1, idxData=0, idxDestino=-1;
+                let idxJumbo=-1, idxExtra=-1, idxEsp=-1, idxPrim=-1, idxSeg=-1;
+
+                c.forEach((h,i)=>{ 
+                    if(h.includes("caixas")) idxCaixa=i; 
+                    if(h.includes("trincados")) idxTrinc=i; 
+                    if(h.includes("carimbo")) idxData=i;
+                    if(h.includes("jumbo")) idxJumbo=i;
+                    if(h.includes("extra")) idxExtra=i;
+                    if(h.includes("especial")) idxEsp=i;
+                    if(h.includes("primeira")) idxPrim=i;
+                    if(h.includes("segundinha")) idxSeg=i;
+                    if(h.includes("destino")) idxDestino=i;
+                });
+
+                if(idxCaixa === -1) return;
+
+                // Loop: Do mais antigo (1) ao mais recente, para somar o estoque histórico corretamente
+                // Mas para lista recente e somas do dia, precisamos filtrar
+                
+                for(let i=1; i<rows.length; i++){
+                    let cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                    if(cols.length <= idxData) continue; 
+                    
+                    let dtRaw = cols[idxData].replace(/"/g,"").trim(); // DD/MM/YYYY HH:MM:SS
+                    let dtDate = dtRaw.split(' ')[0]; // DD/MM/YYYY
+                    let dtIso = dtRaw; // Simplificação, na vdd precisaria converter se o formato fosse diff
+
+                    let valCx = parseFloat(cols[idxCaixa]) || 0;
+                    let valTrin = parseFloat(cols[idxTrinc]) || 0;
+                    let vJ = (idxJumbo>-1) ? (parseFloat(cols[idxJumbo])||0) : 0;
+                    let vEx = (idxExtra>-1) ? (parseFloat(cols[idxExtra])||0) : 0;
+                    let vEs = (idxEsp>-1) ? (parseFloat(cols[idxEsp])||0) : 0;
+                    let vPr = (idxPrim>-1) ? (parseFloat(cols[idxPrim])||0) : 0;
+                    let vSe = (idxSeg>-1) ? (parseFloat(cols[idxSeg])||0) : 0;
+                    
+                    let destino = (idxDestino > -1 && cols[idxDestino]) ? cols[idxDestino].replace(/"/g,"").trim() : "Estoque";
+
+                    // === 1. CÁLCULO DE ESTOQUE GERAL (HISTÓRICO COMPLETO) ===
+                    if(destino === "Estoque" || destino === "") {
+                        // Entrada: Soma
+                        stkJumbo += vJ; stkExtra += vEx; stkEsp += vEs; stkPrim += vPr; stkSeg += vSe;
+                    } else {
+                        // Saída: Subtrai
+                        stkJumbo -= vJ; stkExtra -= vEx; stkEsp -= vEs; stkPrim -= vPr; stkSeg -= vSe;
+                    }
+
+                    // === 2. CÁLCULOS DO DIA (FILTRO DE DATA) ===
+                    if(dtRaw.includes(dataFiltroBR) || dtRaw.includes(dataFiltroISO)){ 
+                        
+                        // Lista de Movimento (Adiciona ao array para exibir depois)
+                        let tipo = ""; let qtd = 0; let cls="tag-tipo";
+                        if(valCx>0){ tipo="Caixas"; qtd=valCx; cls="tag-caixa"; }
+                        else if(valTrin>0){ tipo="Trincados"; qtd=valTrin; cls="tag-trincado"; }
+                        else if(vJ>0){ tipo="Jumbo"; qtd=vJ; }
+                        else if(vEx>0){ tipo="Extra"; qtd=vEx; }
+                        else if(vEs>0){ tipo="Especial"; qtd=vEs; }
+                        else if(vPr>0){ tipo="Primeira"; qtd=vPr; }
+                        else if(vSe>0){ tipo="Segundinha"; qtd=vSe; }
+                        
+                        if(destino === "Minori" || destino === "Ceasa") cls = "tag-saida";
+                        
+                        // Adiciona no início do array para os mais recentes ficarem no topo da lista visual
+                        if(tipo !== "") {
+                            listaTodas.unshift({ d: dtRaw.split(' ')[0], t: tipo, q: qtd, c: cls, dest: destino });
+                        }
+
+                        // Somas do Dia
+                        if(destino === "Estoque" || destino === "") {
+                            diaCx += valCx;
+                            diaTrin += valTrin;
+                            diaJumbo += vJ; diaExtra += vEx; diaEsp += vEs; diaPrim += vPr; diaSeg += vSe;
+                        } else {
+                            diaSaidaJumbo += vJ; diaSaidaExtra += vEx; diaSaidaEsp += vEs; diaSaidaPrim += vPr; diaSaidaSeg += vSe;
+                            if(destino === "Minori") saidaMinori += (vJ+vEx+vEs+vPr+vSe);
+                            if(destino === "Ceasa") saidaCeasa += (vJ+vEx+vEs+vPr+vSe);
+                        }
+                    }
+                }
+
+                // CALCULA TOTAL DE CAIXAS PRODUZIDAS (Soma dos tipos do dia)
+                let totalProducaoDia = diaSeg + diaPrim + diaEsp + diaExtra + diaJumbo;
+
+                // Render Cards (Agora com Soma Automática do Dia)
+                document.getElementById("sala-total-caixas").innerText = totalProducaoDia;
+                document.getElementById("sala-total-trincados").innerText = diaTrin;
+
+                // Calculo Estoque Total Geral
+                let totalEstoque = stkSeg + stkPrim + stkEsp + stkExtra + stkJumbo;
+
+                let htmlClass = `
+                    <tr><td><span class='tag-tipo'>Segundinha</span></td><td style='text-align:right'>${diaSeg}</td><td style='text-align:right; color:#c62828;'>${diaSaidaSeg>0?'-'+diaSaidaSeg:'-'}</td><td style='text-align:right; font-size:1.1rem; color:#6A1B9A;'><strong>${stkSeg}</strong></td></tr>
+                    <tr><td><span class='tag-tipo'>Primeira</span></td><td style='text-align:right'>${diaPrim}</td><td style='text-align:right; color:#c62828;'>${diaSaidaPrim>0?'-'+diaSaidaPrim:'-'}</td><td style='text-align:right; font-size:1.1rem; color:#6A1B9A;'><strong>${stkPrim}</strong></td></tr>
+                    <tr><td><span class='tag-tipo'>Especial</span></td><td style='text-align:right'>${diaEsp}</td><td style='text-align:right; color:#c62828;'>${diaSaidaEsp>0?'-'+diaSaidaEsp:'-'}</td><td style='text-align:right; font-size:1.1rem; color:#6A1B9A;'><strong>${stkEsp}</strong></td></tr>
+                    <tr><td><span class='tag-tipo'>Extra</span></td><td style='text-align:right'>${diaExtra}</td><td style='text-align:right; color:#c62828;'>${diaSaidaExtra>0?'-'+diaSaidaExtra:'-'}</td><td style='text-align:right; font-size:1.1rem; color:#6A1B9A;'><strong>${stkExtra}</strong></td></tr>
+                    <tr><td><span class='tag-tipo'>Jumbo</span></td><td style='text-align:right'>${diaJumbo}</td><td style='text-align:right; color:#c62828;'>${diaSaidaJumbo>0?'-'+diaSaidaJumbo:'-'}</td><td style='text-align:right; font-size:1.1rem; color:#6A1B9A;'><strong>${stkJumbo}</strong></td></tr>
+                    <tr style="background-color:#f0f0f0; border-top:2px solid #ccc;">
+                        <td><strong>ESTOQUE TOTAL</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td style='text-align:right; font-size:1.3rem; color:#333;'><strong>${totalEstoque}</strong></td>
+                    </tr>
+                `;
+                document.getElementById("tabela-estoque-resumo").innerHTML = htmlClass;
+
+                let htmlSaidas = `
+                    <tr><td>Minori</td><td style='text-align:right;'>${saidaMinori}</td></tr>
+                    <tr><td>Ceasa</td><td style='text-align:right;'>${saidaCeasa}</td></tr>
+                `;
+                document.getElementById("tabela-saidas-cliente").innerHTML = (saidaMinori+saidaCeasa > 0) ? htmlSaidas : "<tr><td colspan='2' style='text-align:center;'>Sem saídas hoje.</td></tr>";
+
+                let html = "";
+                // Limita a 15 itens
+                listaTodas.slice(0, 15).forEach(x=>{
+                    let destBadge = (x.dest !== "Estoque" && x.dest !== "") ? `<span style="font-size:0.7rem; background:#ffebee; color:#c62828; padding:1px 4px; border-radius:3px; margin-left:5px;">${x.dest}</span>` : "";
+                    html += `<tr><td style="font-size:0.8rem; color:#666;">${x.d}</td><td>${destBadge}</td><td><span class="${x.c}">${x.t}</span></td><td style="text-align:right;"><strong>${x.q}</strong></td></tr>`;
+                });
+                document.getElementById("tabela-sala-detalhada").innerHTML = (html || "<tr><td colspan='4' style='text-align:center'>Vazio</td></tr>");
+            });
+        }
+
+        function atualizarGrafico(lista) { let lg = [...lista].sort((a,b)=>a.n.replace(/\D/g,'') - b.n.replace(/\D/g,'')); const ctx = document.getElementById('graficoProducao').getContext('2d'); if (meuGrafico) meuGrafico.destroy(); meuGrafico = new Chart(ctx, { type: 'bar', data: { labels: lg.map(i=>i.n), datasets: [{ label: 'Ovos', data: lg.map(i=>i.v), backgroundColor: '#4CAF50' }] }, options: { maintainAspectRatio: false } }); }
+        function saveLocal(fid, d){ let k=(fid===1)?'granjaOffline':'salaOvoOffline'; let p=JSON.parse(localStorage.getItem(k))||[]; p.push(d); localStorage.setItem(k,JSON.stringify(p)); showSuccessScreen(false); checkPendingData(); }
+        function showSuccessScreen(on){ document.querySelectorAll('form').forEach(f=>f.parentElement.style.display='none'); document.getElementById('success-message').style.display='block'; document.getElementById('success-title').innerText=on?"Enviado!":"Salvo Offline!"; }
+        function resetAllForms(){ document.querySelectorAll('form').forEach(f=>{f.reset();f.parentElement.style.display='block';}); document.getElementById('success-message').style.display='none'; checkPendingData(); mudarTextoQuantidade(); mudarTextoSala(); }
+        function getFormattedDate(){ let d=new Date(); return d.toLocaleDateString('pt-BR')+" "+d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}); }
+        function checkPendingData(){ let p1=JSON.parse(localStorage.getItem('granjaOffline'))||[]; let b1=document.getElementById('btn-sync-coleta'); b1.style.display=(p1.length&&navigator.onLine)?'block':'none'; b1.innerText=`📤 Enviar ${p1.length} (Galpão)`; let p2=JSON.parse(localStorage.getItem('salaOvoOffline'))||[]; let b2=document.getElementById('btn-sync-sala'); b2.style.display=(p2.length&&navigator.onLine)?'block':'none'; b2.innerText=`📤 Enviar ${p2.length} (Sala)`; }
+        async function syncDataColeta(){ let p=JSON.parse(localStorage.getItem('granjaOffline'))||[]; for(let i of p) await fetch(`${FORM1_URL}?${ID1_COLETA}=${i.coleta}&${ID1_GALPAO}=${i.galpao}&${ID1_FORMAS}=${i.formas}&${ID1_DATA}=${i.dataHora}`,{mode:'no-cors'}); localStorage.removeItem('granjaOffline'); alert("Enviado!"); checkPendingData(); }
+        async function syncDataSala(){ let p=JSON.parse(localStorage.getItem('salaOvoOffline'))||[]; for(let i of p) { let dados = {}; dados[ID_CAIXAS] = (i.tipo === "Caixas") ? i.qtd : ""; dados[ID_TRINCADOS] = (i.tipo === "Trincados") ? i.qtd : ""; dados[ID_PRIMEIRA] = (i.tipo === "Primeira") ? i.qtd : ""; dados[ID_ESPECIAL] = (i.tipo === "Especial") ? i.qtd : ""; dados[ID_EXTRA] = (i.tipo === "Extra") ? i.qtd : ""; dados[ID_JUMBO] = (i.tipo === "Jumbo") ? i.qtd : ""; if(i.tipo === "Segundinha") dados[ID_SEGUNDINHA] = i.qtd; if(i.destino) dados[ID_DESTINO] = i.destino; const formData = new FormData(); for(const key in dados) formData.append(key, dados[key]); try { await fetch(FORM2_URL, {method: 'POST', mode:'no-cors', body: formData}); } catch(e){} await new Promise(r => setTimeout(r, 500)); } localStorage.removeItem('salaOvoOffline'); alert("Enviado!"); checkPendingData(); }
+    </script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./service-worker.js");
+}
+</script>
+</body>
+</html>
