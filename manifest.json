@@ -2,7 +2,7 @@
   "name": "Granja Sítio Inatomi",
   "short_name": "Granja",
   "description": "Sistema de controle e produção da granja",
-  "start_url": "./Pdw.html",
+  "start_url": " /Granja/",
   "display": "standalone",
   "background_color": "#E8F5E9",
   "theme_color": "#2E7D32",
